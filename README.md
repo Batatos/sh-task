@@ -90,15 +90,6 @@ curl -X POST http://localhost:8080/api/v1/events/ \
 curl http://localhost:8080/api/v1/events/
 ```
 
-## 🧪 Testing
-
-```bash
-# Run tests
-go test ./...
-
-# Test API endpoints
-./scripts/test-api.sh
-```
 
 ## 📊 Database Schema
 
