@@ -1,23 +1,27 @@
 package handler
 
 import (
+	"log"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"skyhawk-security-microservice/internal/models"
+	"skyhawk-security-microservice/internal/queue"
 	"skyhawk-security-microservice/internal/repository"
 )
 
 // EventHandler handles security event-related endpoints
 type EventHandler struct {
-	eventRepo *repository.EventRepository
+	eventRepo    *repository.EventRepository
+	queueManager queue.QueueInterface
 }
 
 // NewEventHandler creates a new event handler
-func NewEventHandler(eventRepo *repository.EventRepository) *EventHandler {
+func NewEventHandler(eventRepo *repository.EventRepository, queueManager queue.QueueInterface) *EventHandler {
 	return &EventHandler{
-		eventRepo: eventRepo,
+		eventRepo:    eventRepo,
+		queueManager: queueManager,
 	}
 }
 
@@ -49,8 +53,19 @@ func (h *EventHandler) CreateEvent(c *gin.Context) {
 		return
 	}
 
+			// Publish to queue for async processing
+		if h.queueManager != nil {
+			go func() {
+				if err := h.queueManager.PublishEvent(event, "security_events"); err != nil {
+					log.Printf("Failed to publish event to queue: %v", err)
+				} else {
+					log.Printf("Event %s published to queue", event.EventID)
+				}
+			}()
+		}
+
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "Event created successfully",
+		"message": "Event created successfully and queued for processing",
 		"event":   event,
 	})
 }
@@ -65,9 +80,16 @@ func (h *EventHandler) GetEvents(c *gin.Context) {
 		return
 	}
 
+	// Get queue statistics if queue manager is available
+	var queueStats map[string]interface{}
+	if h.queueManager != nil {
+		queueStats = h.queueManager.GetQueueStats("security_events", "security_events_retry", "security_events_dead")
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"events": events,
-		"total":  len(events),
+		"events":     events,
+		"total":      len(events),
+		"queue_stats": queueStats,
 	})
 }
 
@@ -153,4 +175,21 @@ func (h *EventHandler) DeleteEvent(c *gin.Context) {
 // generateEventID generates a unique event ID
 func generateEventID() string {
 	return "event-" + time.Now().Format("20060102150405") + "-" + time.Now().Format("000000000")
+}
+
+// GetQueueStats handles queue statistics requests
+func (h *EventHandler) GetQueueStats(c *gin.Context) {
+	if h.queueManager == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error": "Queue manager not available",
+		})
+		return
+	}
+
+	stats := h.queueManager.GetQueueStats("security_events", "security_events_retry", "security_events_dead")
+	
+	c.JSON(http.StatusOK, gin.H{
+		"queue_stats": stats,
+		"timestamp":   time.Now(),
+	})
 } 

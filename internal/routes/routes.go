@@ -32,6 +32,12 @@ func SetupRoutes(router *gin.Engine, handlers *handler.Handler) {
 			events.DELETE("/:id", handlers.EventHandler.DeleteEvent)
 		}
 
+		// Queue routes
+		queue := apiV1.Group("/queue")
+		{
+			queue.GET("/stats", handlers.EventHandler.GetQueueStats)
+		}
+
 		// Future route groups can be added here:
 		// users := apiV1.Group("/users")
 		// incidents := apiV1.Group("/incidents")

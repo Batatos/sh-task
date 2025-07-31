@@ -8,17 +8,14 @@ import (
 	"skyhawk-security-microservice/internal/models"
 )
 
-// EventRepository handles database operations for events
 type EventRepository struct {
 	db *database.DB
 }
 
-// NewEventRepository creates a new event repository
 func NewEventRepository(db *database.DB) *EventRepository {
 	return &EventRepository{db: db}
 }
 
-// CreateEvent creates a new event in the database
 func (r *EventRepository) CreateEvent(event *models.Event) error {
 	query := `
 		INSERT INTO security_events (event_id, event_type, severity, source, description, event_data)
@@ -112,7 +109,6 @@ func (r *EventRepository) GetAllEvents() ([]*models.Event, error) {
 	return events, nil
 }
 
-// UpdateEvent updates an event in the database
 func (r *EventRepository) UpdateEvent(eventID string, updates *models.UpdateEventRequest) (*models.Event, error) {
 	query := `
 		UPDATE security_events
